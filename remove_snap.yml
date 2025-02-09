@@ -1,0 +1,47 @@
+- become: true
+  name: Remove Snap
+  hosts: myhosts
+  tasks:
+    - name: Stop snapd service
+      ansible.builtin.systemd_service:
+        name: snapd.service
+        enabled: false
+    - name: Stop snapd socket
+      ansible.builtin.systemd_service:
+        name: snapd.socket
+        enabled: false
+    - name: Stop snapd seeded service
+      ansible.builtin.systemd_service:
+        name: snapd.seeded.service
+        enabled: false
+    - name: List installed snaps
+      ansible.builtin.command: snap list
+      register: snap_list
+    - name: Remove all installed snaps
+      community.general.snap:
+        name: "{{ item }}"
+        state: absent
+      with_items: "{{ snap_list.stdout_lines[1:] | map('split', ' ') | map('first') | select('ne', 'core') | list }}"
+      when: snap_list.stdout_lines | length > 1
+    - name: Remove snapd cache
+      ansible.builtin.file:
+        path: /var/cache/snapd/
+        state: absent
+    - name: Remove snap package
+      ansible.builtin.apt:
+        name: snapd
+        state: absent
+        autoremove: true
+        purge: true
+    - name: Remove snap directory from home
+      ansible.builtin.file:
+        path: "{{ ansible_env.HOME }}/snap"
+        state: absent
+    - name: Prevent snapd from being reinstalled
+      ansible.builtin.copy:
+        dest: /etc/apt/preferences.d/nosnap.pref
+        content: |
+          Package: snapd
+          Pin: release a=*
+          Pin-Priority: -10
+        mode: '0644'
