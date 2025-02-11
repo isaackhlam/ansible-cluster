@@ -1,0 +1,144 @@
+- become: true
+  hosts: all
+  name: ubuntu-generic
+  tasks:
+    - name: Update repo
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+    - name: System upgrade
+      ansible.builtin.apt:
+        name: "*"
+        state: latest
+    - name: Install core pakages
+      ansible.builtin.apt:
+        pkg:
+        - amd64-microcode
+        - intel-microcode
+        - build-essential
+        - git
+- become: true
+  hosts: all
+  name: network
+  tasks:
+    - name: set timezone
+      community.general.timezone:
+        name: "Asia/Taipei"
+    - name: enable systemd-timesyncd
+      ansible.builtin.systemd:
+        name: systemd-timesyncd.service
+        daemon_reload: true
+        enabled: true
+        state: restarted
+    - name: generate /etc/ssh/sshd_config
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regex: "{{ item['regex'] }}"
+        line: "{{ item['line'] }}"
+      loop:
+        - regex: ^(# *)?PasswordAuthentication
+          line: PasswordAuthentication no
+        - regex: ^(# *)?PermitRootLogin
+          line: PermitRootLogin no
+        - regex: ^(# *)?X11Forwarding
+          line: X11Forwarding yes
+    - name: enable ssh server
+      ansible.builtin.systemd:
+        name: ssh.service
+        enabled: true
+        state: restarted
+- become: true
+  hosts: all
+  name: baseline
+  tasks:
+    - name: install baseline package
+      ansible.builtin.apt:
+        pkg: "{{ item }}"
+      loop:
+        - - ansible
+        # linux headers
+        - - linux-generic
+          - linux-headers-generic
+        # monitor
+        - - atop
+          - htop
+          - glances
+          - iotop
+          - ncdu
+        # build tools
+        - - autoconf
+          - automake
+          - cmake
+          - cmake-curses-gui
+        # zip tools
+        - - bzip2
+          - gzip
+          - tar
+          - unrar
+          - unzip
+          - xz-utils
+          - zip
+          - zlib1g-dev
+          - zstd
+        # network tools
+        - - curl
+          - ethtool
+          - inetutils-*
+          - iproute2
+          - ipv6calc
+          - net-tools
+          - network-manager
+          - nicstat
+          - iperf
+          - iperf3
+          - tcpdump
+          - wget
+        # file system tools
+        - - fio
+          - fuse3
+          - lsscsi
+          - lvm2
+          - ntfs-3g
+          - nvme-cli
+          - smartmontools
+        # system tools
+        - - dmidecode
+          - google-perftools
+          - hwdata
+          - hwinfo
+          - lm-sensors
+          - lsb-release
+          - lshw
+          - lsof
+          - linux-tools-common
+          - linux-tools-generic
+          - strace
+          - sysstat
+        # Editor
+        - - grep
+          - nano
+          - man-db
+          - vim
+          - which
+          - yq
+          - jq
+          - sed
+          - gawk
+          - findutils
+          - less
+          - ranger
+        # xorg
+        - - xorg
+          - openbox
+        # others
+        - - golang-go
+          - tmux
+- become: true
+  hosts: all
+  name: reboot
+  tasks:
+    - name: reboot
+      become_user: root
+      ansible.builtin.reboot:
+        reboot_timeout: 300
+        connect_timeout: 15
