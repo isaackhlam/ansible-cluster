@@ -1,0 +1,17 @@
+- become: true
+  hosts: all
+  name: configure podman container
+  tasks:
+    - name: install package
+      ansible.builtin.package:
+        name: "{{ item }}"
+        state: present
+      loop:
+        - podman
+        - podman-docker
+    - name: setup docker hub
+      ansible.builtin.lineinfile:
+        path: /etc/containers/registries.conf
+        regexp: '^unqualified-search-registries'
+        line: 'unqualified-search-registries = ["docker.io"]'
+        create: true
